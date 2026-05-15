@@ -1,2 +1,2 @@
 # automation-basic-project
-This is first basic automation project
+This is first basic automation project with harness integration

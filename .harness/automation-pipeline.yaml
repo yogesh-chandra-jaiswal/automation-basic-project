@@ -1,0 +1,111 @@
+pipeline:
+  name: Automation-Basic-Pipeline
+  identifier: automation_basic_pipeline
+  projectIdentifier: <YOUR_PROJECT_ID>
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: Build
+        identifier: Build
+        description: Build and compile the automation project
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: <YOUR_K8S_CONNECTOR>
+              namespace: harness-delegate-ng
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Compile
+                  identifier: Compile
+                  spec:
+                    shell: Sh
+                    command: |-
+                      echo "========== Building Automation Project =========="
+                      mvn clean compile
+                    envVariables:
+                      MAVEN_OPTS: "-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true"
+              - step:
+                  type: Run
+                  name: Package
+                  identifier: Package
+                  spec:
+                    shell: Sh
+                    command: mvn package -DskipTests
+    - stage:
+        name: Test
+        identifier: Test
+        description: Run automation tests using TestNG
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: <YOUR_K8S_CONNECTOR>
+              namespace: harness-delegate-ng
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run Tests
+                  identifier: RunTests
+                  spec:
+                    shell: Sh
+                    command: |-
+                      echo "========== Running TestNG Tests =========="
+                      mvn test
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - target/surefire-reports/*.xml
+              - step:
+                  type: Run
+                  name: Generate Report
+                  identifier: GenerateReport
+                  spec:
+                    shell: Sh
+                    command: |-
+                      echo "========== Test Execution Completed =========="
+                      if [ -f target/surefire-reports/testng-results.xml ]; then
+                        echo "Test reports generated successfully"
+                      fi
+    - stage:
+        name: Archive
+        identifier: Archive
+        description: Archive test artifacts
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: <YOUR_K8S_CONNECTOR>
+              namespace: harness-delegate-ng
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Archive Artifacts
+                  identifier: ArchiveArtifacts
+                  spec:
+                    shell: Sh
+                    command: |-
+                      echo "========== Archiving Test Results =========="
+                      tar -czf test-results.tar.gz target/surefire-reports/
+                      echo "Artifacts archived successfully"
